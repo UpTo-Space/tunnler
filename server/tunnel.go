@@ -15,12 +15,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-/*
-TODO: es muss gleichzeitig ein HTTP Server sein,
-welcher alle Requests 1 zu 1 weiter zum Subscriber leitet
-*/
-
-type tunnelServer struct {
+type tunnlerServer struct {
 	messageBuffer  int
 	messageLimiter *rate.Limiter
 	serveMux       http.ServeMux
@@ -35,8 +30,8 @@ type subscriber struct {
 	closeSlow func()
 }
 
-func newTunnelServer() *tunnelServer {
-	ts := &tunnelServer{
+func newtunnlerServer() *tunnlerServer {
+	ts := &tunnlerServer{
 		messageBuffer:  16,
 		logf:           log.Printf,
 		subscriber:     nil,
@@ -50,11 +45,11 @@ func newTunnelServer() *tunnelServer {
 	return ts
 }
 
-func (ts *tunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (ts *tunnlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts.serveMux.ServeHTTP(w, r)
 }
 
-func (ts *tunnelServer) httpHandler(w http.ResponseWriter, r *http.Request) {
+func (ts *tunnlerServer) httpHandler(w http.ResponseWriter, r *http.Request) {
 	reqData, err := common.SerializeRequest(r)
 	if err != nil {
 		ts.logf("error serializing request: %v", err)
@@ -63,7 +58,7 @@ func (ts *tunnelServer) httpHandler(w http.ResponseWriter, r *http.Request) {
 	ts.publish(reqData)
 }
 
-func (ts *tunnelServer) subscribeHandler(w http.ResponseWriter, r *http.Request) {
+func (ts *tunnlerServer) subscribeHandler(w http.ResponseWriter, r *http.Request) {
 	err := ts.subscribe(w, r)
 	if errors.Is(err, context.Canceled) {
 		return
@@ -78,7 +73,7 @@ func (ts *tunnelServer) subscribeHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (ts *tunnelServer) publishHandler(w http.ResponseWriter, r *http.Request) {
+func (ts *tunnlerServer) publishHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 	}
@@ -94,7 +89,7 @@ func (ts *tunnelServer) publishHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (ts *tunnelServer) subscribe(w http.ResponseWriter, r *http.Request) error {
+func (ts *tunnlerServer) subscribe(w http.ResponseWriter, r *http.Request) error {
 	var mu sync.Mutex
 	var c *websocket.Conn
 	var closed bool
@@ -142,13 +137,13 @@ func (ts *tunnelServer) subscribe(w http.ResponseWriter, r *http.Request) error 
 	}
 }
 
-func (ts *tunnelServer) registerSubscriber(s *subscriber) {
+func (ts *tunnlerServer) registerSubscriber(s *subscriber) {
 	ts.subscriberMu.Lock()
 	ts.subscriber = s
 	ts.subscriberMu.Unlock()
 }
 
-func (ts *tunnelServer) publish(msg []byte) {
+func (ts *tunnlerServer) publish(msg []byte) {
 	if ts.subscriber == nil {
 		return
 	}

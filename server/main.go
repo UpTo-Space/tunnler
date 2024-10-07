@@ -32,7 +32,7 @@ func run() error {
 
 	log.Printf("listening on ws://%v", l.Addr())
 
-	ts := newTunnelServer()
+	ts := newtunnlerServer()
 	s := &http.Server{
 		Handler:      ts,
 		ReadTimeout:  time.Second * 10,

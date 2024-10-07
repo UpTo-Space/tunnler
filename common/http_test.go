@@ -25,3 +25,23 @@ func TestRequestSerialization(t *testing.T) {
 		t.Errorf("Deserialized Request doesn't match")
 	}
 }
+
+func TestResponseSerialization(t *testing.T) {
+	resp := http.Response{
+		StatusCode: 967,
+	}
+
+	bytes, err := SerializeResponse(&resp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tresp, err := DeserializeResponse(bytes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if tresp.StatusCode != resp.StatusCode {
+		t.Errorf("Deserialized Response doesn't match")
+	}
+}

@@ -12,6 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	tunnlerServerAdress string
+	tunnlerServerPort   string
+)
+
 // httpCmd represents the http command
 var httpCmd = &cobra.Command{
 	Use:   "http [adress:port | port] [flags]",
@@ -47,13 +52,22 @@ var httpCmd = &cobra.Command{
 			portString = args[0]
 		}
 
-		client.Connect(hostString, portString)
+		ci := client.TunnlerConnectionInfo{
+			HostAdress:    hostString,
+			HostPort:      portString,
+			TunnlerAdress: tunnlerServerAdress,
+			TunnlerPort:   tunnlerServerPort,
+		}
+
+		client := client.NewTunnlerClient(ci)
+		client.Connect()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(httpCmd)
-
+	httpCmd.PersistentFlags().StringVar(&tunnlerServerAdress, "server", "127.0.0.1", "IP / Domain of the tunnler server to connect to")
+	httpCmd.PersistentFlags().StringVar(&tunnlerServerPort, "serverPort", "8888", "Port of the tunnler server to connect to")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
