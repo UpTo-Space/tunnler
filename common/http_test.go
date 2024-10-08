@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"testing"
 )
@@ -27,8 +29,11 @@ func TestRequestSerialization(t *testing.T) {
 }
 
 func TestResponseSerialization(t *testing.T) {
+	body := "Test Response"
 	resp := http.Response{
-		StatusCode: 967,
+		StatusCode:    967,
+		Body:          io.NopCloser(bytes.NewBufferString(body)),
+		ContentLength: int64(len(body)),
 	}
 
 	bytes, err := SerializeResponse(&resp)
@@ -41,7 +46,8 @@ func TestResponseSerialization(t *testing.T) {
 		t.Error(err)
 	}
 
-	if tresp.StatusCode != resp.StatusCode {
+	if tresp.StatusCode != resp.StatusCode ||
+		tresp.ContentLength != resp.ContentLength {
 		t.Errorf("Deserialized Response doesn't match")
 	}
 }
