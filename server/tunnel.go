@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -19,14 +18,15 @@ type tunnlerServer struct {
 	messageBuffer  int
 	messageLimiter *rate.Limiter
 	serveMux       http.ServeMux
-	subscriberMu   sync.Mutex
-	subscriber     *subscriber
+	clientMu       sync.Mutex
+	client         *client
 
 	logf func(f string, v ...interface{})
 }
 
-type subscriber struct {
+type client struct {
 	msgs      chan []byte
+	rsps      chan []byte
 	closeSlow func()
 }
 
@@ -34,13 +34,12 @@ func newtunnlerServer() *tunnlerServer {
 	ts := &tunnlerServer{
 		messageBuffer:  16,
 		logf:           log.Printf,
-		subscriber:     nil,
+		client:         nil,
 		messageLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 8),
 	}
 
 	ts.serveMux.HandleFunc("/", ts.httpHandler)
-	ts.serveMux.HandleFunc("/tunnler/connection/subscribe", ts.subscribeHandler)
-	ts.serveMux.HandleFunc("/tunnler/connection/publish", ts.publishHandler)
+	ts.serveMux.HandleFunc("/tunnler/connection/initialize", ts.initializeHandler)
 
 	return ts
 }
@@ -55,11 +54,11 @@ func (ts *tunnlerServer) httpHandler(w http.ResponseWriter, r *http.Request) {
 		ts.logf("error serializing request: %v", err)
 	}
 
-	ts.publish(reqData)
+	ts.forwardRequest(reqData)
 }
 
-func (ts *tunnlerServer) subscribeHandler(w http.ResponseWriter, r *http.Request) {
-	err := ts.subscribe(w, r)
+func (ts *tunnlerServer) initializeHandler(w http.ResponseWriter, r *http.Request) {
+	err := ts.initialize(w, r)
 	if errors.Is(err, context.Canceled) {
 		return
 	}
@@ -73,28 +72,13 @@ func (ts *tunnlerServer) subscribeHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (ts *tunnlerServer) publishHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-	}
-
-	body := http.MaxBytesReader(w, r.Body, 8192)
-	msg, err := io.ReadAll(body)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
-	}
-
-	ts.publish(msg)
-
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func (ts *tunnlerServer) subscribe(w http.ResponseWriter, r *http.Request) error {
+func (ts *tunnlerServer) initialize(w http.ResponseWriter, r *http.Request) error {
 	var mu sync.Mutex
 	var c *websocket.Conn
 	var closed bool
-	s := &subscriber{
+	s := &client{
 		msgs: make(chan []byte, ts.messageBuffer),
+		rsps: make(chan []byte, ts.messageBuffer),
 		closeSlow: func() {
 			mu.Lock()
 			defer mu.Unlock()
@@ -105,7 +89,7 @@ func (ts *tunnlerServer) subscribe(w http.ResponseWriter, r *http.Request) error
 		},
 	}
 
-	ts.registerSubscriber(s)
+	ts.registerClient(s)
 
 	c2, err := websocket.Accept(w, r, nil)
 	if err != nil {
@@ -127,36 +111,38 @@ func (ts *tunnlerServer) subscribe(w http.ResponseWriter, r *http.Request) error
 	for {
 		select {
 		case msg := <-s.msgs:
-			err := writeTimeout(ctx, time.Second*5, c, msg)
+			err := c.Write(ctx, websocket.MessageBinary, msg)
 			if err != nil {
 				return err
 			}
+		case rsps := <-s.rsps:
+			ts.logf(string(rsps))
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 }
 
-func (ts *tunnlerServer) registerSubscriber(s *subscriber) {
-	ts.subscriberMu.Lock()
-	ts.subscriber = s
-	ts.subscriberMu.Unlock()
+func (ts *tunnlerServer) registerClient(s *client) {
+	ts.clientMu.Lock()
+	ts.client = s
+	ts.clientMu.Unlock()
 }
 
-func (ts *tunnlerServer) publish(msg []byte) {
-	if ts.subscriber == nil {
+func (ts *tunnlerServer) forwardRequest(msg []byte) {
+	if ts.client == nil {
 		return
 	}
 
-	ts.subscriberMu.Lock()
-	defer ts.subscriberMu.Unlock()
+	ts.clientMu.Lock()
+	defer ts.clientMu.Unlock()
 
 	ts.messageLimiter.Wait(context.Background())
 
 	select {
-	case ts.subscriber.msgs <- msg:
+	case ts.client.msgs <- msg:
 	default:
-		go ts.subscriber.closeSlow()
+		go ts.client.closeSlow()
 	}
 }
 

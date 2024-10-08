@@ -39,11 +39,11 @@ func NewTunnlerClient(ci TunnlerConnectionInfo) *tunnlerClient {
 }
 
 func (tc *tunnlerClient) Connect() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	c, _, err := websocket.Dial(
-		ctx, fmt.Sprintf("ws://%s:%s/tunnler/connection/subscribe",
+		ctx, fmt.Sprintf("ws://%s:%s/tunnler/connection/initialize",
 			tc.connectionInfo.TunnlerAdress, tc.connectionInfo.TunnlerPort), nil)
 
 	if err != nil {
