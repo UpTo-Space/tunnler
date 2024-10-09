@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,21 +80,32 @@ func (ts *tunnlerServer) httpHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case rsp := <-ts.client.rsps:
-				msg, err := common.DeserializeResponse(rsp)
-				if err != nil {
-					ts.logf("error in deserializing response: %v", err)
-				}
-
-				err = msg.Write(w)
-				if err != nil {
-					ts.logf("error in writing response object: %v", err)
-				}
+				ts.handleResponse(w, rsp)
 				return
 			case <-ctx.Done():
 				return
 			}
 		}
 	}
+}
+
+func (ts *tunnlerServer) handleResponse(w http.ResponseWriter, b []byte) {
+	msg, err := common.DeserializeResponse(b)
+	if err != nil {
+		ts.logf("error in deserializing response: %v", err)
+	}
+
+	body, err := io.ReadAll(msg.Body)
+	if err != nil {
+		ts.logf("error in reading response object: %v", err)
+	}
+
+	for k, v := range msg.Header {
+		w.Header().Set(k, strings.Join(v, ","))
+		fmt.Printf("Header Key: %s with Value %s\n", k, v)
+	}
+	w.WriteHeader(msg.StatusCode)
+	w.Write(body)
 }
 
 func (ts *tunnlerServer) initialize(w http.ResponseWriter, r *http.Request) error {
@@ -175,11 +189,4 @@ func (ts *tunnlerServer) forwardRequest(msg []byte) {
 	default:
 		go ts.client.closeSlow()
 	}
-}
-
-func writeTimeout(ctx context.Context, timeout time.Duration, c *websocket.Conn, msg []byte) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	return c.Write(ctx, websocket.MessageBinary, msg)
 }
