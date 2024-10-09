@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -102,7 +101,6 @@ func (ts *tunnlerServer) handleResponse(w http.ResponseWriter, b []byte) {
 
 	for k, v := range msg.Header {
 		w.Header().Set(k, strings.Join(v, ","))
-		fmt.Printf("Header Key: %s with Value %s\n", k, v)
 	}
 	w.WriteHeader(msg.StatusCode)
 	w.Write(body)
