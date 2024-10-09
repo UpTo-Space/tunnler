@@ -39,7 +39,6 @@ func newtunnlerServer() *tunnlerServer {
 	}
 
 	ts.serveMux.HandleFunc("/", ts.httpHandler)
-	ts.serveMux.HandleFunc("/tunnler/connection/initialize", ts.initializeHandler)
 
 	return ts
 }
@@ -49,26 +48,49 @@ func (ts *tunnlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ts *tunnlerServer) httpHandler(w http.ResponseWriter, r *http.Request) {
-	reqData, err := common.SerializeRequest(r)
-	if err != nil {
-		ts.logf("error serializing request: %v", err)
-	}
+	// First of all, check if we have a websocket connection request
+	if r.Header.Get("Upgrade") == "websocket" {
+		err := ts.initialize(w, r)
+		if errors.Is(err, context.Canceled) {
+			return
+		}
+		if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
+			websocket.CloseStatus(err) == websocket.StatusGoingAway {
+			return
+		}
+		if err != nil {
+			ts.logf("%v", err)
+			return
+		}
+	} else {
+		// Otherwise handle it as a forwardable http request
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
 
-	ts.forwardRequest(reqData)
-}
+		reqData, err := common.SerializeRequest(r)
+		if err != nil {
+			ts.logf("error serializing request: %v", err)
+		}
 
-func (ts *tunnlerServer) initializeHandler(w http.ResponseWriter, r *http.Request) {
-	err := ts.initialize(w, r)
-	if errors.Is(err, context.Canceled) {
-		return
-	}
-	if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
-		websocket.CloseStatus(err) == websocket.StatusGoingAway {
-		return
-	}
-	if err != nil {
-		ts.logf("%v", err)
-		return
+		ts.forwardRequest(reqData)
+
+		for {
+			select {
+			case rsp := <-ts.client.rsps:
+				msg, err := common.DeserializeResponse(rsp)
+				if err != nil {
+					ts.logf("error in deserializing response: %v", err)
+				}
+
+				err = msg.Write(w)
+				if err != nil {
+					ts.logf("error in writing response object: %v", err)
+				}
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
 	}
 }
 
@@ -106,7 +128,18 @@ func (ts *tunnlerServer) initialize(w http.ResponseWriter, r *http.Request) erro
 	mu.Unlock()
 	defer c.CloseNow()
 
-	ctx := c.CloseRead(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		for {
+			_, msg, err := c.Read(ctx)
+			if err != nil {
+				ts.logf("error in receiving: %v", err)
+			}
+			s.rsps <- msg
+		}
+	}()
 
 	for {
 		select {
@@ -115,8 +148,6 @@ func (ts *tunnlerServer) initialize(w http.ResponseWriter, r *http.Request) erro
 			if err != nil {
 				return err
 			}
-		case rsps := <-s.rsps:
-			ts.logf(string(rsps))
 		case <-ctx.Done():
 			return ctx.Err()
 		}

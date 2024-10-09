@@ -49,28 +49,30 @@ func (tc *tunnlerClient) Connect() {
 	if err != nil {
 		c.Close(websocket.StatusInternalError, "")
 	}
+	defer c.CloseNow()
 
 	for {
 		_, msgByte, err := c.Read(ctx)
 		if err != nil {
-			log.Fatalf("error in receiving message: %v", err)
-			break
+			tc.logf("error in receiving message: %v", err)
 		}
 
 		req, err := common.DeserializeRequest(msgByte)
 		if err != nil {
-			log.Fatalf("error in deserializing request: %v", err)
+			tc.logf("error in deserializing request: %v", err)
 		}
 
 		resp, err := tc.TunnelRequest(req)
 		if err != nil {
-			log.Fatalf("error in tunneling request: %v", err)
+			tc.logf("error in tunneling request: %v", err)
 		}
 
-		fmt.Println(resp)
+		err = tc.TunnelResponse(resp, c)
+		if err != nil {
+			tc.logf("error in tunneling response: %v", err)
+		}
 	}
 
-	defer c.CloseNow()
 }
 
 func (tc *tunnlerClient) TunnelRequest(req *http.Request) (*http.Response, error) {
@@ -102,6 +104,15 @@ func (tc *tunnlerClient) TunnelRequest(req *http.Request) (*http.Response, error
 	return resp, nil
 }
 
-func (tc *tunnlerClient) TunnelResponse(resp *http.Response) {
+func (tc *tunnlerClient) TunnelResponse(resp *http.Response, c *websocket.Conn) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
 
+	b, err := common.SerializeResponse(resp)
+	if err != nil {
+		tc.logf("error seriallizing response: %v", err)
+	}
+
+	fmt.Println("Tunneling response")
+	return c.Write(ctx, websocket.MessageBinary, b)
 }
