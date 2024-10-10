@@ -41,6 +41,7 @@ func (c *LRUCache) Set(key string, value string) {
 	} else {
 		c.add(key, value)
 	}
+	c.ensureCapacity()
 }
 
 func (c *LRUCache) Get(key string) string {
@@ -53,6 +54,33 @@ func (c *LRUCache) Get(key string) string {
 	}
 
 	return ""
+}
+
+func (c *LRUCache) Delete(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if e := c.hash[key]; e != nil {
+		c.capacity -= uint64(e.Value.(*entry).size)
+		c.list.Remove(e)
+		delete(c.hash, key)
+	}
+}
+
+func (c *LRUCache) Clear() {
+	c.list = list.New().Init()
+	c.hash = make(map[string]*list.Element)
+	c.size = 0
+}
+
+func (c *LRUCache) ensureCapacity() {
+	for c.size > c.capacity {
+		lastElem := c.list.Back()
+		lastValue := lastElem.Value.(*entry)
+		c.list.Remove(lastElem)
+		delete(c.hash, lastValue.key)
+		c.size -= uint64(lastValue.size)
+	}
 }
 
 func (c *LRUCache) add(key string, value string) {

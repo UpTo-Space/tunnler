@@ -48,6 +48,97 @@ func TestLRUAddGet(t *testing.T) {
 	}
 }
 
+func TestLRUCapacity(t *testing.T) {
+	lru := NewLRUCache(3)
+
+	tests := []struct {
+		key          string
+		value        string
+		expectedKeys []string
+	}{
+		{"A", "a", []string{"A"}},
+		{"B", "b", []string{"A", "B"}},
+		{"C", "c", []string{"A", "B", "C"}},
+		{"D", "d", []string{"B", "C", "D"}},
+		{"E", "e", []string{"C", "D", "E"}},
+	}
+
+	for _, tt := range tests {
+		lru.Set(tt.key, tt.value)
+		if lru.list.Len() > int(lru.capacity) {
+			t.Errorf("the LRU shouldn't be bigger than each individial character added. capacity: %v, actual length: %v", lru.capacity, lru.list.Len())
+		}
+
+		for _, e := range tt.expectedKeys {
+			if el := lru.hash[e]; el == nil {
+				t.Errorf("element should exist but doesn't: %v", e)
+			}
+		}
+	}
+}
+
+func TestLRUClear(t *testing.T) {
+	lru := NewLRUCache(5)
+
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"A", "a"},
+		{"B", "b"},
+		{"C", "c"},
+		{"D", "d"},
+		{"E", "e"},
+	}
+
+	for _, tt := range tests {
+		lru.add(tt.key, tt.value)
+	}
+
+	lru.Clear()
+
+	if lru.list.Front() != nil {
+		t.Error("an empty LRU shouldn't have a front element")
+	}
+
+	if len(lru.hash) > 0 {
+		t.Error("an empty LRU shouldn't have any element in it's hash map")
+	}
+}
+
+func TestLRUCapacityClear(t *testing.T) {
+	lru := NewLRUCache(2)
+
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"A", "a"},
+		{"B", "b"},
+		{"C", "c"},
+		{"D", "d"},
+		{"E", "e"},
+	}
+
+	for _, tt := range tests {
+		lru.add(tt.key, tt.value)
+	}
+
+	if lru.size <= lru.capacity {
+		t.Errorf("LRU capacity should be exceeded by now. actual size: %v and capacity: %v", lru.size, lru.capacity)
+	}
+
+	if len(lru.hash) != len(tests) || lru.list.Len() != len(tests) {
+		t.Error("LRU map and list should have the same length as the tests")
+	}
+
+	lru.ensureCapacity()
+
+	if lru.size != lru.capacity {
+		t.Error("LRU size should be limited to capacity now")
+	}
+}
+
 func elementShouldBeFirst(e *list.Element) bool {
 	return e.Prev() == nil
 }
