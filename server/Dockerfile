@@ -6,4 +6,4 @@ ADD . /app
 
 RUN go install -mod=mod github.com/githubnemo/CompileDaemon
 
-ENTRYPOINT CompileDaemon --build="go build ." --command=./server
+ENTRYPOINT   --build="go build ." --command=./server

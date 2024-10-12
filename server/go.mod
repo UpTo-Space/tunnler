@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/UpTo-Space/tunnler/common v0.0.0
+	github.com/UpTo-Space/tunnler/database v0.0.0
 	github.com/coder/websocket v1.8.12
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/lib/pq v1.10.9
@@ -17,3 +18,4 @@ require (
 )
 
 replace github.com/UpTo-Space/tunnler/common v0.0.0 => ../common
+replace github.com/UpTo-Space/tunnler/database v0.0.0 => ../database
