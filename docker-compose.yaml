@@ -9,3 +9,15 @@ services:
     - POSTGRES_PASSWORD=postgres
     - POSTGRES_USER=postgres
     - POSTGRES_DB=postgres
+    networks:
+        - intranet
+  mailslurper:
+    image: marcopas/docker-mailslurper:latest
+    ports:
+      - '8080:8080' # web UI
+      - '8085:8085'
+      - '2500:2500'
+    networks:
+      - intranet
+networks:
+  intranet:

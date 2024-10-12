@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	// initializeDatabase()
+	initializeDatabase()
 	log.SetFlags(0)
 
 	err := run()
