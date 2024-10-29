@@ -12,11 +12,6 @@ type RegisterUserParams struct {
 	Email    string `json:"email"`
 }
 
-type ActivateUserParams struct {
-	Username       string `json:"username"`
-	ActivationCode int    `json:"activationCode"`
-}
-
 type LoginUserParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -42,9 +37,16 @@ func (as *authServer) registerUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := as.registerUser(params.Username, params.Password, params.Email); err != nil {
+	activationCode, err := as.registerUser(params.Username, params.Password, params.Email)
+	if err != nil {
 		as.logf("error in registering user: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := sendActivationMain(params.Email, params.Username, activationCode); err != nil {
+		as.logf("error in sending mail for user: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -52,21 +54,15 @@ func (as *authServer) registerUserHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (as *authServer) activateUserHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	var params ActivateUserParams
+	userName := r.URL.Query().Get("username")
+	code := r.URL.Query().Get("code")
 
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&params); err != nil {
-		as.logf("error in decoding activate user params: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	valid, err := as.checkActivationCode(params.ActivationCode, params.Username)
+	valid, err := as.checkActivationCode(code, userName)
 	if err != nil {
 		as.logf("error in activate user: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -74,9 +70,9 @@ func (as *authServer) activateUserHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if !valid {
-		as.logf("invalid activation code: %s", params.ActivationCode)
+		as.logf("invalid activation code: %s", code)
 
-		if err := as.increaseActivationTries(params.Username); err != nil {
+		if err := as.increaseActivationTries(userName); err != nil {
 			as.logf("error in increasing activation tries: %v", err)
 		}
 
@@ -84,7 +80,7 @@ func (as *authServer) activateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := as.activateUser(params.Username); err != nil {
+	if err := as.activateUser(userName); err != nil {
 		as.logf("error in activating user: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

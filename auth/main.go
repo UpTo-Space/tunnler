@@ -29,11 +29,11 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler.logf("listening on http://%v:%v", hostName, hostPort)
+	handler.logf("listening on http://%v:%v", listenHostName, hostPort)
 
 	s := &http.Server{
 		Handler:      handler,
-		Addr:         fmt.Sprintf("%s:%s", hostName, hostPort),
+		Addr:         fmt.Sprintf("%s:%s", listenHostName, hostPort),
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
 	}

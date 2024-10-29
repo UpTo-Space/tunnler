@@ -1,23 +1,6 @@
 version: '3.9'
 
 services:
-  auth-server:
-    build:
-      context: ./
-      dockerfile: ./auth/Dockerfile
-    ports:
-    - 8887:8887
-    environment:
-    - POSTGRES_SERVER=postgres
-    - POSTGRES_PASSWORD=postgres
-    - POSTGRES_USER=postgres
-    - POSTGRES_DB=postgres
-    - POSTGRES_PORT=5432
-    - LISTENHOSTNAME=0.0.0.0
-    - PORT=8887
-    - SMTP_HOST=mailslurper
-    networks:
-    - intranet
   postgres:
     image: postgres:17-alpine
     ports: 

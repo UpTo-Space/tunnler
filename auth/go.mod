@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/UpTo-Space/tunnler/common v0.0.0
 	github.com/UpTo-Space/tunnler/database v0.0.0
+	github.com/wneessen/go-mail v0.5.1
 )
 
 require (
@@ -20,8 +21,9 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 )
 
-replace github.com/UpTo-Space/tunnler/database v0.0.0 => ../database
+replace github.com/UpTo-Space/tunnler/database => ../database
 
-replace github.com/UpTo-Space/tunnler/common v0.0.0 => ../common
+replace github.com/UpTo-Space/tunnler/common => ../common

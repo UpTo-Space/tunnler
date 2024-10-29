@@ -3,7 +3,8 @@ package main
 var (
 	AddUserQuery string = `
 		INSERT INTO users (username, password_hash, email, activation_code) 
-		VALUES ($1, crypt($2, gen_salt('bf')), $3, CAST(1000000000 + floor(random() * 9000000000) AS bigint));`
+		VALUES ($1, crypt($2, gen_salt('bf')), $3, CAST(1000000000 + floor(random() * 9000000000) AS bigint))
+		RETURNING activation_code;`
 
 	ChangePasswordQuery string = `
 		UPDATE users 
@@ -38,10 +39,15 @@ var (
 		WHERE username = $1;`
 )
 
-func (as *authServer) registerUser(username, password, email string) error {
-	_, err := as.db.Database.Exec(AddUserQuery, username, password, email)
+func (as *authServer) registerUser(username, password, email string) (string, error) {
+	var activationCode string
+	err := as.db.Database.QueryRow(AddUserQuery, username, password, email).Scan(&activationCode)
 
-	return err
+	if err != nil {
+		return "", err
+	}
+
+	return activationCode, nil
 }
 
 func (as *authServer) changePassword(id, newPassword string) error {
@@ -78,7 +84,7 @@ func (as *authServer) activateUser(username string) error {
 	return err
 }
 
-func (as *authServer) checkActivationCode(activationCode int, username string) (bool, error) {
+func (as *authServer) checkActivationCode(activationCode string, username string) (bool, error) {
 	var result string
 	err := as.db.Database.QueryRow(CheckActivationCodeQuery, activationCode, username).Scan(&result)
 
