@@ -4,23 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/UpTo-Space/tunnler/common"
 )
-
-type RegisterUserParams struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
-
-type LoginUserParams struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type LoginResponse struct {
-	AccessToken string `json:"access_token"`
-	Username    string `json:"username"`
-}
 
 func (as *authServer) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -28,7 +14,7 @@ func (as *authServer) registerUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var params RegisterUserParams
+	var params common.RegisterUserParams
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&params); err != nil {
@@ -95,7 +81,7 @@ func (as *authServer) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var params LoginUserParams
+	var params common.LoginUserParams
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&params); err != nil {
@@ -123,7 +109,7 @@ func (as *authServer) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := &LoginResponse{
+	response := &common.LoginResponse{
 		AccessToken: tk,
 		Username:    params.Username,
 	}

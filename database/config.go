@@ -1,22 +1,14 @@
 package database
 
-import "os"
-
-var (
-	postgresUsername string = getEnv("POSTGRES_USER", "postgres")
-	postgresPassword string = getEnv("POSTGRES_PASSWORD", "postgres")
-	postgresServer   string = getEnv("POSTGRES_SERVER", "localhost")
-	postgresPort     string = getEnv("POSTGRES_PORT", "5432")
-	postgresDatabase string = getEnv("POSTGRES_DATABASE", "postgres")
-	postgresSslMode  string = getEnv("POSTGRES_SSLMODE", "disable")
+import (
+	"github.com/UpTo-Space/tunnler/common"
 )
 
-func getEnv(key, fallback string) string {
-	v := os.Getenv(key)
-
-	if len(v) == 0 {
-		return fallback
-	}
-
-	return v
-}
+var (
+	postgresUsername string = common.GetEnv("POSTGRES_USER", "postgres")
+	postgresPassword string = common.GetEnv("POSTGRES_PASSWORD", "postgres")
+	postgresServer   string = common.GetEnv("POSTGRES_SERVER", "localhost")
+	postgresPort     string = common.GetEnv("POSTGRES_PORT", "5432")
+	postgresDatabase string = common.GetEnv("POSTGRES_DATABASE", "postgres")
+	postgresSslMode  string = common.GetEnv("POSTGRES_SSLMODE", "disable")
+)

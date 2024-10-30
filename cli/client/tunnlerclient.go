@@ -51,6 +51,8 @@ func (tc *tunnlerClient) Connect() {
 	}
 	defer c.CloseNow()
 
+	fmt.Println("Connection established.")
+
 	for {
 		_, msgByte, err := c.Read(ctx)
 		if err != nil {
