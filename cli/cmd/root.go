@@ -1,15 +1,12 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"os"
 
+	"github.com/UpTo-Space/tunnler/client/cmd/auth"
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "client",
 	Short: "Create a connection to an UpToSpace Tunnel Server",
@@ -18,8 +15,6 @@ var rootCmd = &cobra.Command{
 	without worring about firewalls etc.`,
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -28,4 +23,5 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.AddCommand(auth.AuthCmd)
 }
